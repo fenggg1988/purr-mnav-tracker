@@ -1,0 +1,43 @@
+{
+ "updated_at": "2026-09-11T11:53:35+08:00",
+ "date": "2026-09-11",
+ "purr_price": 11.01,
+ "hype_price": 78.6295,
+ "purr_source": "stockanalysis",
+ "fundamentals": {
+  "hype_holdings": {
+   "value": 29350000,
+   "unit": "HYPE",
+   "note": "HYPE 持仓数量。来源: 公司 Dashboard / 2026-08 报道约 29.3-29.4M。季报后请更新。",
+   "source": "https://www.hyperliquidstrategies.com/"
+  },
+  "cash": {
+   "value": 132600000,
+   "unit": "USD",
+   "note": "现金及现金等价物。来源: 截至 2026-08-19 为 $132.6M。",
+   "source": "公司财报"
+  },
+  "deferred_tax_liability": {
+   "value": 220000000,
+   "unit": "USD",
+   "note": "递延所得税负债（估算值，用于调整后 NAV）。公司未直接披露，为分析推算值。",
+   "source": "推算"
+  },
+  "shares_outstanding": {
+   "value": 201000000,
+   "unit": "股",
+   "note": "流通/稀释股本。来源: Motley Fool 2026-08 市值 $2.4B / 股价 $11.93 推算约 201M。回购和增发会改变此值。",
+   "source": "推算"
+  }
+ },
+ "market_cap": 2213010000.0,
+ "gross_nav": 2440375825.0,
+ "adj_nav": 2220375825.0,
+ "mnav_gross": 0.9068,
+ "mnav_adj": 0.9967,
+ "premium_gross": -9.32,
+ "premium_adj": -0.33,
+ "hype_per_share": 0.14602,
+ "nav_per_share_gross": 12.141,
+ "nav_per_share_adj": 11.047
+}

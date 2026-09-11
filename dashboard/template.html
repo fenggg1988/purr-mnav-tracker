@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PURR mNAV 动态监测</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --border: #e5e8ee;
+    --text: #1c2333; --muted: #6b7487;
+    --red: #d93a3a; --green: #1a9e6e; --blue: #2f6fed; --orange: #e8890c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 24px; }
+  .header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; margin-bottom: 20px; }
+  h1 { font-size: 22px; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .kpi .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .kpi .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kpi .value.small { font-size: 17px; }
+  .kpi .foot { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .up { color: var(--red); } .down { color: var(--green); }
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 900px) { .charts { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .panel h2 { font-size: 14px; margin-bottom: 10px; color: var(--text); }
+  .chart-wrap { position: relative; height: 300px; }
+  .note { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-top: 12px; font-size: 12.5px; color: var(--muted); line-height: 1.8; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge.premium { background: #fdecec; color: var(--red); }
+  .badge.discount { background: #e6f5ef; color: var(--green); }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>🐱 PURR mNAV 动态监测看板</h1>
+    <div class="sub">Hyperliquid Strategies Inc. (NASDAQ: PURR) · 数据每交易日更新 · 更新时间: <span id="updated"></span></div>
+  </div>
+  <div class="sub" id="sourceBadge"></div>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="charts">
+  <div class="panel"><h2>mNAV 走势（毛 NAV / 调整后 NAV）</h2><div class="chart-wrap"><canvas id="c1"></canvas></div></div>
+  <div class="panel"><h2>PURR 股价 vs 每股 NAV（$）</h2><div class="chart-wrap"><canvas id="c2"></canvas></div></div>
+  <div class="panel"><h2>溢价 / 折价率（%）</h2><div class="chart-wrap"><canvas id="c3"></canvas></div></div>
+  <div class="panel"><h2>HYPE 价格走势（$）</h2><div class="chart-wrap"><canvas id="c4"></canvas></div></div>
+</div>
+
+<div class="note" id="note"></div>
+
+<script>
+const DATA = __DATA__;
+const L = DATA.latest;
+const S = DATA.history.snapshots || [];
+const DAILY = DATA.history.purr_daily || [];
+
+const fmtM = v => v == null ? "-" : (v >= 1e9 ? "$" + (v/1e9).toFixed(2) + "B" : "$" + (v/1e6).toFixed(1) + "M");
+const pct = v => v == null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
+
+document.getElementById("updated").textContent = (L.updated_at || "").replace("T", " ");
+document.getElementById("sourceBadge").textContent = "PURR 股价来源: " + (L.purr_source || "-");
+
+// ---- KPI 卡片 ----
+const premBadge = (v) => v == null ? "" :
+  `<span class="badge ${v >= 0 ? "premium" : "discount"}">${v >= 0 ? "溢价" : "折价"} ${Math.abs(v).toFixed(1)}%</span>`;
+const kpis = [
+  { label: "PURR 股价", value: "$" + L.purr_price.toFixed(2), foot: "NASDAQ 实时收盘" },
+  { label: "HYPE 价格", value: "$" + L.hype_price.toFixed(2), foot: "Hyperliquid 官方 API" },
+  { label: "mNAV（毛）", value: L.mnav_gross.toFixed(3) + "x", foot: premBadge(L.premium_gross) },
+  { label: "mNAV（调整后）", value: L.mnav_adj.toFixed(3) + "x", foot: premBadge(L.premium_adj) },
+  { label: "市值", value: fmtM(L.market_cap), foot: "股价 × 流通股本" },
+  { label: "总 NAV（毛）", value: fmtM(L.gross_nav), foot: "HYPE 市值 + 现金" },
+  { label: "每股 HYPE", value: L.hype_per_share.toFixed(4), foot: "持仓 " + fmtM(L.fundamentals.hype_holdings.value * 1) + " 枚" },
+  { label: "每股 NAV", value: "$" + L.nav_per_share_gross.toFixed(2), foot: "调整后 $" + L.nav_per_share_adj.toFixed(2) },
+];
+document.getElementById("kpis").innerHTML = kpis.map(k =>
+  `<div class="kpi"><div class="label">${k.label}</div><div class="value small">${k.value}</div><div class="foot">${k.foot || ""}</div></div>`
+).join("");
+
+// ---- 图表 ----
+Chart.defaults.font.family = '"Microsoft YaHei", "PingFang SC", sans-serif';
+Chart.defaults.color = "#6b7487";
+
+const sd = S.slice(-120); // 最近 120 个快照日
+const labels = sd.map(x => x.date.slice(5));
+const gridOpt = { color: "#eef1f5" };
+
+// c1 mNAV 走势
+new Chart(document.getElementById("c1"), {
+  type: "line",
+  data: { labels, datasets: [
+    { label: "mNAV (毛)", data: sd.map(x => x.mnav_gross), borderColor: "#2f6fed", backgroundColor: "rgba(47,111,237,.08)", fill: true, tension: .3, pointRadius: 0, borderWidth: 2 },
+    { label: "mNAV (调整后)", data: sd.map(x => x.mnav_adj), borderColor: "#e8890c", tension: .3, pointRadius: 0, borderWidth: 2, borderDash: [5,4] },
+    { label: "基准 1.0x", data: sd.map(() => 1), borderColor: "#9aa3b2", borderDash: [3,3], pointRadius: 0, borderWidth: 1 },
+  ]},
+  options: { maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
+    scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } }, y: { grid: gridOpt } } }
+});
+
+// c2 PURR vs NAV/share
+const dl = DAILY.slice(-180);
+const navByDate = Object.fromEntries(S.map(x => [x.date, x]));
+new Chart(document.getElementById("c2"), {
+  type: "line",
+  data: { labels: dl.map(x => x[0].slice(5)), datasets: [
+    { label: "PURR 收盘价", data: dl.map(x => x[1]), borderColor: "#1c2333", pointRadius: 0, borderWidth: 1.5, tension: .2 },
+    { label: "每股毛 NAV", data: dl.map(x => { const s = navByDate[x[0]]; return s ? s.nav_per_share_gross : null; }), borderColor: "#2f6fed", borderDash: [5,4], pointRadius: 0, borderWidth: 1.5, spanGaps: true },
+    { label: "每股调整后 NAV", data: dl.map(x => { const s = navByDate[x[0]]; return s ? s.nav_per_share_adj : null; }), borderColor: "#e8890c", borderDash: [2,3], pointRadius: 0, borderWidth: 1.2, spanGaps: true },
+  ]},
+  options: { maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
+    scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } }, y: { grid: gridOpt } } }
+});
+
+// c3 溢价/折价
+new Chart(document.getElementById("c3"), {
+  type: "line",
+  data: { labels, datasets: [
+    { label: "溢价率-毛(%)", data: sd.map(x => x.premium_gross), borderColor: "#d93a3a", backgroundColor: ctx => {
+        const v = sd.map(x => x.premium_gross);
+        return v[ctx.dataIndex] >= 0 ? "rgba(217,58,58,.15)" : "rgba(26,158,110,.15)";
+      }, fill: "origin", tension: .3, pointRadius: 0, borderWidth: 2 },
+    { label: "溢价率-调整后(%)", data: sd.map(x => x.premium_adj), borderColor: "#e8890c", tension: .3, pointRadius: 0, borderWidth: 1.5, borderDash: [5,4] },
+  ]},
+  options: { maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
+    scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } }, y: { grid: gridOpt, ticks: { callback: v => v + "%" } } } }
+});
+
+// c4 HYPE 价格
+new Chart(document.getElementById("c4"), {
+  type: "line",
+  data: { labels, datasets: [
+    { label: "HYPE ($)", data: sd.map(x => x.hype_price), borderColor: "#8b5cf6", backgroundColor: "rgba(139,92,246,.08)", fill: true, tension: .3, pointRadius: 0, borderWidth: 2 },
+  ]},
+  options: { maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
+    scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } }, y: { grid: gridOpt } } }
+});
+
+// ---- 说明 ----
+const F = L.fundamentals;
+document.getElementById("note").innerHTML = `
+<b>计算口径</b>：市值 = PURR 股价 × 流通股本（${(F.shares_outstanding.value/1e6).toFixed(0)}M 股）；毛 NAV = HYPE 持仓（${(F.hype_holdings.value/1e6).toFixed(2)}M 枚）× HYPE 价格 + 现金（${fmtM(F.cash.value)}）；
+调整后 NAV = 毛 NAV − 递延所得税（估算 ${fmtM(F.deferred_tax_liability.value)}）；mNAV = 市值 ÷ NAV，&gt;1 溢价、&lt;1 折价。<br>
+<b>基本面来源</b>：${F.hype_holdings.source || "公司披露"}（随季报更新，请编辑仓库根目录 config.json）。HYPE 持仓约 ${(F.hype_holdings.value/1e6).toFixed(1)}M，现金约 ${fmtM(F.cash.value)}。<br>
+<b>数据源</b>：HYPE 价格 — Hyperliquid 官方 API；PURR 股价 — ${L.purr_source === "yahoo" ? "Yahoo Finance" : "stockanalysis.com"}；本页为自动生成，不构成投资建议。`;
+</script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PURR mNAV 动态监测</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --border: #e5e8ee;
+    --text: #1c2333; --muted: #6b7487;
+    --red: #d93a3a; --green: #1a9e6e; --blue: #2f6fed; --orange: #e8890c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 24px; }
+  .header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; margin-bottom: 20px; }
+  h1 { font-size: 22px; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .kpi .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .kpi .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kpi .value.small { font-size: 17px; }
+  .kpi .foot { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .up { color: var(--red); } .down { color: var(--green); }
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 900px) { .charts { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .panel h2 { font-size: 14px; margin-bottom: 10px; color: var(--text); }
+  .chart-wrap { position: relative; height: 300px; }
+  .note { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-top: 12px; font-size: 12.5px; color: var(--muted); line-height: 1.8; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge.premium { background: #fdecec; color: var(--red); }
+  .badge.discount { background: #e6f5ef; color: var(--green); }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>🐱 PURR mNAV 动态监测看板</h1>
+    <div class="sub">Hyperliquid Strategies Inc. (NASDAQ: PURR) · 数据每交易日更新 · 更新时间: <span id="updated"></span></div>
+  </div>
+  <div class="sub" id="sourceBadge"></div>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="charts">
+  <div class="panel"><h2>mNAV 走势（毛 NAV / 调整后 NAV）</h2><div class="chart-wrap"><canvas id="c1"></canvas></div></div>
+  <div class="panel"><h2>PURR 股价 vs 每股 NAV（$）</h2><div class="chart-wrap"><canvas id="c2"></canvas></div></div>
+  <div class="panel"><h2>溢价 / 折价率（%）</h2><div class="chart-wrap"><canvas id="c3"></canvas></div></div>
+  <div class="panel"><h2>HYPE 价格走势（$）</h2><div class="chart-wrap"><canvas id="c4"></canvas></div></div>
+</div>
+
+<div class="note" id="note"></div>
+
+<script>
+const DATA = {"history": {"purr_daily": [["2025-12-04", 3.6], ["2025-12-05", 3.68], ["2025-12-08", 3.7], ["2025-12-09", 3.86], ["2025-12-10", 3.76], ["2025-12-11", 3.42], ["2025-12-12", 3.5], ["2025-12-15", 3.23], ["2025-12-16", 3.47], ["2025-12-17", 3.41], ["2025-12-18", 3.18], ["2025-12-19", 3.41], ["2025-12-22", 3.37], ["2025-12-23", 3.32], ["2025-12-24", 3.21], ["2025-12-26", 3.26], ["2025-12-29", 3.1], ["2025-12-30", 3.37], ["2025-12-31", 3.56], ["2026-01-02", 3.44], ["2026-01-05", 3.44], ["2026-01-06", 3.72], ["2026-01-07", 3.76], ["2026-01-08", 3.58], ["2026-01-09", 3.55], ["2026-01-12", 3.45], ["2026-01-13", 3.75], ["2026-01-14", 3.74], ["2026-01-15", 3.65], ["2026-01-16", 3.71], ["2026-01-20", 3.48], ["2026-01-21", 3.36], ["2026-01-22", 3.4], ["2026-01-23", 3.51], ["2026-01-26", 3.74], ["2026-01-27", 4.35], ["2026-01-28", 4.65], ["2026-01-29", 4.37], ["2026-01-30", 4.54], ["2026-02-02", 5.35], ["2026-02-03", 5.15], ["2026-02-04", 5.14], ["2026-02-05", 4.67], ["2026-02-06", 4.93], ["2026-02-09", 4.89], ["2026-02-10", 4.63], ["2026-02-11", 4.54], ["2026-02-12", 4.26], ["2026-02-13", 4.32], ["2026-02-17", 4.22], ["2026-02-18", 4.08], ["2026-02-19", 4.02], ["2026-02-20", 4.29], ["2026-02-23", 3.78], ["2026-02-24", 3.95], ["2026-02-25", 4.14], ["2026-02-26", 4.25], ["2026-02-27", 4.08], ["2026-03-02", 4.86], ["2026-03-03", 4.65], ["2026-03-04", 5.05], ["2026-03-05", 4.87], ["2026-03-06", 4.33], ["2026-03-09", 5.35], ["2026-03-10", 5.33], ["2026-03-11", 5.84], ["2026-03-12", 5.38], ["2026-03-13", 5.32], ["2026-03-16", 5.93], ["2026-03-17", 6.05], ["2026-03-18", 6.38], ["2026-03-19", 5.85], ["2026-03-20", 5.2], ["2026-03-23", 5.29], ["2026-03-24", 5.29], ["2026-03-25", 5.27], ["2026-03-26", 4.88], ["2026-03-27", 4.95], ["2026-03-30", 4.92], ["2026-03-31", 5.09], ["2026-04-01", 5.13], ["2026-04-02", 4.95], ["2026-04-06", 5.05], ["2026-04-07", 4.89], ["2026-04-08", 5.37], ["2026-04-09", 5.63], ["2026-04-10", 6.01], ["2026-04-13", 6.5], ["2026-04-14", 6.25], ["2026-04-15", 6.51], ["2026-04-16", 6.45], ["2026-04-17", 6.41], ["2026-04-20", 6.17], ["2026-04-21", 5.64], ["2026-04-22", 6.14], ["2026-04-23", 5.97], ["2026-04-24", 6.0], ["2026-04-27", 6.25], ["2026-04-28", 5.91], ["2026-04-29", 5.83], ["2026-04-30", 6.02], ["2026-05-01", 6.27], ["2026-05-04", 6.38], ["2026-05-05", 6.68], ["2026-05-06", 6.92], ["2026-05-07", 6.55], ["2026-05-08", 6.71], ["2026-05-11", 6.53], ["2026-05-12", 6.25], ["2026-05-13", 6.07], ["2026-05-14", 7.14], ["2026-05-15", 6.99], ["2026-05-18", 6.93], ["2026-05-19", 7.79], ["2026-05-20", 8.12], ["2026-05-21", 8.48], ["2026-05-22", 7.67], ["2026-05-26", 8.45], ["2026-05-27", 8.36], ["2026-05-28", 8.54], ["2026-05-29", 9.99], ["2026-06-01", 10.87], ["2026-06-02", 10.97], ["2026-06-03", 10.37], ["2026-06-04", 9.49], ["2026-06-05", 8.53], ["2026-06-08", 8.92], ["2026-06-09", 8.25], ["2026-06-10", 7.57], ["2026-06-11", 8.49], ["2026-06-12", 8.7], ["2026-06-15", 9.34], ["2026-06-16", 10.04], ["2026-06-17", 9.81], ["2026-06-18", 9.28], ["2026-06-22", 9.2], ["2026-06-23", 8.14], ["2026-06-24", 7.9], ["2026-06-25", 8.02], ["2026-06-26", 8.74], ["2026-06-29", 8.47], ["2026-06-30", 7.87], ["2026-07-01", 8.21], ["2026-07-02", 8.05], ["2026-07-06", 8.82], ["2026-07-07", 8.18], ["2026-07-08", 7.78], ["2026-07-09", 7.56], ["2026-07-10", 7.55], ["2026-07-13", 7.16], ["2026-07-14", 7.35], ["2026-07-15", 7.61], ["2026-07-16", 6.78], ["2026-07-17", 6.68], ["2026-07-20", 7.05], ["2026-07-21", 7.08], ["2026-07-22", 6.85], ["2026-07-23", 6.51], ["2026-07-24", 6.19], ["2026-07-27", 6.34], ["2026-07-28", 6.16], ["2026-07-29", 5.97], ["2026-07-30", 6.3], ["2026-07-31", 6.21], ["2026-08-03", 6.58], ["2026-08-04", 6.81], ["2026-08-05", 6.82], ["2026-08-06", 6.67], ["2026-08-07", 6.81], ["2026-08-10", 6.6], ["2026-08-11", 6.57], ["2026-08-12", 6.75], ["2026-08-13", 6.82], ["2026-08-14", 6.68], ["2026-08-17", 7.15], ["2026-08-18", 7.2], ["2026-08-19", 9.39], ["2026-08-20", 10.08], ["2026-08-21", 10.58], ["2026-08-24", 10.64], ["2026-08-25", 11.87], ["2026-08-26", 11.56], ["2026-08-27", 12.83], ["2026-08-28", 11.61], ["2026-08-31", 12.25], ["2026-09-01", 11.355], ["2026-09-02", 11.32], ["2026-09-03", 12.77], ["2026-09-04", 12.18], ["2026-09-08", 11.93], ["2026-09-09", 12.03], ["2026-09-10", 11.01]], "snapshots": [{"date": "2026-09-11", "timestamp": "2026-09-11T11:53:35+08:00", "purr_price": 11.01, "hype_price": 78.6295, "purr_source": "stockanalysis", "market_cap": 2213010000.0, "gross_nav": 2440375825.0, "adj_nav": 2220375825.0, "mnav_gross": 0.9068, "mnav_adj": 0.9967, "premium_gross": -9.32, "premium_adj": -0.33, "hype_per_share": 0.14602, "nav_per_share_gross": 12.141, "nav_per_share_adj": 11.047}]}, "latest": {"updated_at": "2026-09-11T11:53:35+08:00", "date": "2026-09-11", "purr_price": 11.01, "hype_price": 78.6295, "purr_source": "stockanalysis", "fundamentals": {"hype_holdings": {"value": 29350000, "unit": "HYPE", "note": "HYPE 持仓数量。来源: 公司 Dashboard / 2026-08 报道约 29.3-29.4M。季报后请更新。", "source": "https://www.hyperliquidstrategies.com/"}, "cash": {"value": 132600000, "unit": "USD", "note": "现金及现金等价物。来源: 截至 2026-08-19 为 $132.6M。", "source": "公司财报"}, "deferred_tax_liability": {"value": 220000000, "unit": "USD", "note": "递延所得税负债（估算值，用于调整后 NAV）。公司未直接披露，为分析推算值。", "source": "推算"}, "shares_outstanding": {"value": 201000000, "unit": "股", "note": "流通/稀释股本。来源: Motley Fool 2026-08 市值 $2.4B / 股价 $11.93 推算约 201M。回购和增发会改变此值。", "source": "推算"}}, "market_cap": 2213010000.0, "gross_nav": 2440375825.0, "adj_nav": 2220375825.0, "mnav_gross": 0.9068, "mnav_adj": 0.9967, "premium_gross": -9.32, "premium_adj": -0.33, "hype_per_share": 0.14602, "nav_per_share_gross": 12.141, "nav_per_share_adj": 11.047}};
+const L = DATA.latest;
+const S = DATA.history.snapshots || [];
+const DAILY = DATA.history.purr_daily || [];
+
+const fmtM = v => v == null ? "-" : (v >= 1e9 ? "$" + (v/1e9).toFixed(2) + "B" : "$" + (v/1e6).toFixed(1) + "M");
+const pct = v => v == null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
+
+document.getElementById("updated").textContent = (L.updated_at || "").replace("T", " ");
+document.getElementById("sourceBadge").textContent = "PURR 股价来源: " + (L.purr_source || "-");
+
+// ---- KPI 卡片 ----
+const premBadge = (v) => v == null ? "" :
+  `<span class="badge ${v >= 0 ? "premium" : "discount"}">${v >= 0 ? "溢价" : "折价"} ${Math.abs(v).toFixed(1)}%</span>`;
+const kpis = [
+  { label: "PURR 股价", value: "$" + L.purr_price.toFixed(2), foot: "NASDAQ 实时收盘" },
+  { label: "HYPE 价格", value: "$" + L.hype_price.toFixed(2), foot: "Hyperliquid 官方 API" },
+  { label: "mNAV（毛）", value: L.mnav_gross.toFixed(3) + "x", foot: premBadge(L.premium_gross) },
+  { label: "mNAV（调整后）", value: L.mnav_adj.toFixed(3) + "x", foot: premBadge(L.premium_adj) },
+  { label: "市值", value: fmtM(L.market_cap), foot: "股价 × 流通股本" },
+  { label: "总 NAV（毛）", value: fmtM(L.gross_nav), foot: "HYPE 市值 + 现金" },
+  { label: "每股 HYPE", value: L.hype_per_share.toFixed(4), foot: "持仓 " + fmtM(L.fundamentals.hype_holdings.value * 1) + " 枚" },
+  { label: "每股 NAV", value: "$" + L.nav_per_share_gross.toFixed(2), foot: "调整后 $" + L.nav_per_share_adj.toFixed(2) },
+];
+document.getElementById("kpis").innerHTML = kpis.map(k =>
+  `<div class="kpi"><div class="label">${k.label}</div><div class="value small">${k.value}</div><div class="foot">${k.foot || ""}</div></div>`
+).join("");
+
+// ---- 图表 ----
+Chart.defaults.font.family = '"Microsoft YaHei", "PingFang SC", sans-serif';
+Chart.defaults.color = "#6b7487";
+
+const sd = S.slice(-120); // 最近 120 个快照日
+const labels = sd.map(x => x.date.slice(5));
+const gridOpt = { color: "#eef1f5" };
+
+// c1 mNAV 走势
+new Chart(document.getElementById("c1"), {
+  type: "line",
+  data: { labels, datasets: [
+    { label: "mNAV (毛)", data: sd.map(x => x.mnav_gross), borderColor: "#2f6fed", backgroundColor: "rgba(47,111,237,.08)", fill: true, tension: .3, pointRadius: 0, borderWidth: 2 },
+    { label: "mNAV (调整后)", data: sd.map(x => x.mnav_adj), borderColor: "#e8890c", tension: .3, pointRadius: 0, borderWidth: 2, borderDash: [5,4] },
+    { label: "基准 1.0x", data: sd.map(() => 1), borderColor: "#9aa3b2", borderDash: [3,3], pointRadius: 0, borderWidth: 1 },
+  ]},
+  options: { maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
+    scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } }, y: { grid: gridOpt } } }
+});
+
+// c2 PURR vs NAV/share
+const dl = DAILY.slice(-180);
+const navByDate = Object.fromEntries(S.map(x => [x.date, x]));
+new Chart(document.getElementById("c2"), {
+  type: "line",
+  data: { labels: dl.map(x => x[0].slice(5)), datasets: [
+    { label: "PURR 收盘价", data: dl.map(x => x[1]), borderColor: "#1c2333", pointRadius: 0, borderWidth: 1.5, tension: .2 },
+    { label: "每股毛 NAV", data: dl.map(x => { const s = navByDate[x[0]]; return s ? s.nav_per_share_gross : null; }), borderColor: "#2f6fed", borderDash: [5,4], pointRadius: 0, borderWidth: 1.5, spanGaps: true },
+    { label: "每股调整后 NAV", data: dl.map(x => { const s = navByDate[x[0]]; return s ? s.nav_per_share_adj : null; }), borderColor: "#e8890c", borderDash: [2,3], pointRadius: 0, borderWidth: 1.2, spanGaps: true },
+  ]},
+  options: { maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
+    scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } }, y: { grid: gridOpt } } }
+});
+
+// c3 溢价/折价
+new Chart(document.getElementById("c3"), {
+  type: "line",
+  data: { labels, datasets: [
+    { label: "溢价率-毛(%)", data: sd.map(x => x.premium_gross), borderColor: "#d93a3a", backgroundColor: ctx => {
+        const v = sd.map(x => x.premium_gross);
+        return v[ctx.dataIndex] >= 0 ? "rgba(217,58,58,.15)" : "rgba(26,158,110,.15)";
+      }, fill: "origin", tension: .3, pointRadius: 0, borderWidth: 2 },
+    { label: "溢价率-调整后(%)", data: sd.map(x => x.premium_adj), borderColor: "#e8890c", tension: .3, pointRadius: 0, borderWidth: 1.5, borderDash: [5,4] },
+  ]},
+  options: { maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
+    scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } }, y: { grid: gridOpt, ticks: { callback: v => v + "%" } } } }
+});
+
+// c4 HYPE 价格
+new Chart(document.getElementById("c4"), {
+  type: "line",
+  data: { labels, datasets: [
+    { label: "HYPE ($)", data: sd.map(x => x.hype_price), borderColor: "#8b5cf6", backgroundColor: "rgba(139,92,246,.08)", fill: true, tension: .3, pointRadius: 0, borderWidth: 2 },
+  ]},
+  options: { maintainAspectRatio: false, plugins: { legend: { position: "bottom" } },
+    scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } }, y: { grid: gridOpt } } }
+});
+
+// ---- 说明 ----
+const F = L.fundamentals;
+document.getElementById("note").innerHTML = `
+<b>计算口径</b>：市值 = PURR 股价 × 流通股本（${(F.shares_outstanding.value/1e6).toFixed(0)}M 股）；毛 NAV = HYPE 持仓（${(F.hype_holdings.value/1e6).toFixed(2)}M 枚）× HYPE 价格 + 现金（${fmtM(F.cash.value)}）；
+调整后 NAV = 毛 NAV − 递延所得税（估算 ${fmtM(F.deferred_tax_liability.value)}）；mNAV = 市值 ÷ NAV，&gt;1 溢价、&lt;1 折价。<br>
+<b>基本面来源</b>：${F.hype_holdings.source || "公司披露"}（随季报更新，请编辑仓库根目录 config.json）。HYPE 持仓约 ${(F.hype_holdings.value/1e6).toFixed(1)}M，现金约 ${fmtM(F.cash.value)}。<br>
+<b>数据源</b>：HYPE 价格 — Hyperliquid 官方 API；PURR 股价 — ${L.purr_source === "yahoo" ? "Yahoo Finance" : "stockanalysis.com"}；本页为自动生成，不构成投资建议。`;
+</script>
+</body>
+</html>
