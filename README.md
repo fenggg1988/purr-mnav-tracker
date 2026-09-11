@@ -2,11 +2,15 @@
 
 监测 **Hyperliquid Strategies Inc.（NASDAQ: PURR）** 的 mNAV（市值 / 净资产值）等核心指标，每日自动更新，图表化呈现。
 
-## 查看看板
+## 在线看板（GitHub Pages）
 
-每次运行后 `dashboard/index.html` 都会重新生成并提交到仓库，直接在本地浏览器打开即可（图表数据已内嵌）。
+`https://fenggg1988.github.io/purr-mnav-tracker/`
 
-> 提示：GitHub 免费计划不支持私有仓库的 Pages。若将仓库改为 Public 并在 Settings → Pages 选择 "GitHub Actions" 部署源，可获得在线看板地址。
+每次数据更新后自动重新部署（仓库为 Public + Pages Actions 部署源）。
+
+## 本地查看
+
+`dashboard/index.html` 数据已内嵌，直接浏览器打开即可。
 
 ## 核心指标
 
