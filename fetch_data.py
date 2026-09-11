@@ -170,6 +170,11 @@ def build_dashboard(history, latest):
     html = tpl.replace("__DATA__", payload)
     with open(DASHBOARD_FILE, "w", encoding="utf-8") as f:
         f.write(html)
+    # 同步一份到 docs/ 供 GitHub Pages 分支构建（main 分支 /docs）
+    docs_dir = os.path.join(BASE, "docs")
+    os.makedirs(docs_dir, exist_ok=True)
+    with open(os.path.join(docs_dir, "index.html"), "w", encoding="utf-8") as f:
+        f.write(html)
 
 
 if __name__ == "__main__":
