@@ -34,14 +34,4 @@ jobs:
           git add data/ dashboard/index.html
           git diff --cached --quiet || git commit -m "data: auto update $(date -u +%Y-%m-%d)"
           git push
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dashboard
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+# 如仓库转为公开，可在此追加 GitHub Pages 部署步骤（免费计划私有仓库不支持 Pages）
