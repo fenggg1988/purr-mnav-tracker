@@ -5,11 +5,11 @@ on:
   schedule:
     - cron: "0 1 * * 1-5"   # UTC 01:00 = 北京时间 09:00 (美股交易日)
   workflow_dispatch:
-  inputs:
-    chain:
-      description: "内部使用：链式调度传来的标记，勿手动填写"
-      required: false
-      default: "0"
+    inputs:
+      chain:
+        description: "内部使用：链式调度传来的标记，勿手动填写"
+        required: false
+        default: "0"
 
 permissions:
   contents: write
