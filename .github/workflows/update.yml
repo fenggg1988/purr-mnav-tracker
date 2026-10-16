@@ -56,3 +56,15 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/${{ github.repository_owner }}/memory-scraper/actions/workflows/daily.yml/dispatches \
             -d '{"ref":"main","inputs":{"chain":"1"}}' || true
+
+      # 旁支：同步驱动「中国半导体技术突破监控台」(china-semi-tracker)。
+      # 独立旁支，不参与主链传递；即使失败也不影响上面五个价格项目。
+      # 条件不带 chain 判断，因此 purr 无论被 cron 还是被链触发，都会带动它。
+      - name: Trigger semiconductor tracker (side branch)
+        if: success()
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.CHAIN_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository_owner }}/china-semi-tracker/actions/workflows/daily.yml/dispatches \
+            -d '{"ref":"main","inputs":{"chain":"1"}}' || true
