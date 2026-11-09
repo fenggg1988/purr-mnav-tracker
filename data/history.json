@@ -1820,20 +1820,20 @@
   },
   {
    "date": "2026-11-09",
-   "timestamp": "2026-11-09T15:27:31+08:00",
+   "timestamp": "2026-11-09T15:30:38+08:00",
    "purr_price": 8.815,
-   "hype_price": 73.4135,
+   "hype_price": 73.2305,
    "purr_source": "stockanalysis",
    "market_cap": 1771815000.0,
-   "gross_nav": 2287286225.0,
-   "adj_nav": 2067286225.0,
-   "mnav_gross": 0.7746,
-   "mnav_adj": 0.8571,
-   "premium_gross": -22.54,
-   "premium_adj": -14.29,
+   "gross_nav": 2281915175.0,
+   "adj_nav": 2061915175.0,
+   "mnav_gross": 0.7765,
+   "mnav_adj": 0.8593,
+   "premium_gross": -22.35,
+   "premium_adj": -14.07,
    "hype_per_share": 0.14602,
-   "nav_per_share_gross": 11.38,
-   "nav_per_share_adj": 10.285
+   "nav_per_share_gross": 11.353,
+   "nav_per_share_adj": 10.258
   }
  ]
 }
