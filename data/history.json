@@ -983,6 +983,10 @@
   [
    "2026-11-24",
    7.74
+  ],
+  [
+   "2026-11-25",
+   7.45
   ]
  ],
  "snapshots": [
@@ -2158,6 +2162,23 @@
    "hype_per_share": 0.14602,
    "nav_per_share_gross": 9.121,
    "nav_per_share_adj": 8.027
+  },
+  {
+   "date": "2026-11-26",
+   "timestamp": "2026-11-26T02:21:06+08:00",
+   "purr_price": 7.45,
+   "hype_price": 60.7575,
+   "purr_source": "stockanalysis",
+   "market_cap": 1497450000.0,
+   "gross_nav": 1915832625.0,
+   "adj_nav": 1695832625.0,
+   "mnav_gross": 0.7816,
+   "mnav_adj": 0.883,
+   "premium_gross": -21.84,
+   "premium_adj": -11.7,
+   "hype_per_share": 0.14602,
+   "nav_per_share_gross": 9.532,
+   "nav_per_share_adj": 8.437
   }
  ]
 }
